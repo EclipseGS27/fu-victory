@@ -1,0 +1,156 @@
+@font-face { font-family: 'FUVS Antonio'; src: url('../fonts/antonio-latin-400-normal.woff2') format('woff2'); font-weight: 400; }
+@font-face { font-family: 'FUVS Antonio'; src: url('../fonts/antonio-latin-700-normal.woff2') format('woff2'); font-weight: 700; }
+@font-face { font-family: 'FUVS PT Sans'; src: url('../fonts/pt-sans-latin-400-normal.woff2') format('woff2'); font-weight: 400; }
+@font-face { font-family: 'FUVS PT Sans'; src: url('../fonts/pt-sans-latin-700-normal.woff2') format('woff2'); font-weight: 700; }
+
+.fuvs, .fuvs-history {
+	--ink: #eef3ff; --ink2: rgba(238, 243, 255, 0.72); --ink3: rgba(238, 243, 255, 0.45);
+	--line: rgba(159, 208, 255, 0.3); --line2: rgba(159, 208, 255, 0.14); --panel: rgba(14, 24, 44, 0.86);
+	--good: #6be3a0; --bad: #ff6b7a; --sup: #7fd6ff;
+	--disp: 'FUVS Antonio', 'Antonio', sans-serif; --text: 'FUVS PT Sans', 'PT Sans', sans-serif;
+	--acc: #f2c45a; --acc2: #fff1c4;
+}
+.fuvs.tone-red { --acc: #ff5a6a; --acc2: #ffd0d5; }
+.fuvs.tone-blue { --acc: #5aa9ff; --acc2: #d6ebff; }
+.fuvs.tone-violet { --acc: #b48cff; --acc2: #eadfff; }
+.fuvs.tone-green { --acc: #6be3a0; --acc2: #dcffeb; }
+
+#fuvs-root { position: fixed; inset: 0; z-index: 9000; color: var(--ink); font-family: var(--text); font-size: 15px; display: flex; align-items: center; justify-content: center; }
+#fuvs-root.closing { animation: fuvs-out 0.35s ease forwards; }
+.fuvs-scrim { position: absolute; inset: 0; background: radial-gradient(120% 90% at 50% 0%, rgba(30, 50, 90, 0.82), rgba(4, 8, 18, 0.94)); backdrop-filter: blur(3px); animation: fuvs-fade 0.5s ease; }
+.fuvs.outcome-defeat .fuvs-scrim { background: radial-gradient(120% 90% at 50% 0%, rgba(70, 14, 22, 0.85), rgba(6, 2, 4, 0.96)); }
+.fuvs-wrap { position: relative; width: min(1280px, 96vw); max-height: 94vh; display: flex; flex-direction: column; gap: 14px; overflow: hidden; }
+
+/* banner */
+.fuvs-banner { position: relative; text-align: center; padding: 10px 0 6px; overflow: hidden; }
+.fuvs-banner h1 { margin: 0; border: 0; font-family: var(--disp); font-weight: 700; font-size: clamp(48px, 7vw, 96px); letter-spacing: 0.08em; text-transform: uppercase; color: var(--acc2); text-shadow: 0 0 18px var(--acc), 0 0 42px var(--acc), 0 4px 0 rgba(0, 0, 0, 0.5); line-height: 1; }
+.fuvs-banner h1 span { display: inline-block; }
+.fuvs-wrap.enter .fuvs-banner h1 span { animation: fuvs-drop 0.55s cubic-bezier(0.2, 1.6, 0.4, 1) both; animation-delay: calc(var(--i) * 55ms); }
+.fuvs-banner .sub { margin-top: 6px; font-family: var(--disp); letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink2); }
+.fuvs-banner::before, .fuvs-banner::after { content: ''; position: absolute; left: 10%; right: 10%; height: 2px; background: linear-gradient(90deg, transparent, var(--acc), transparent); }
+.fuvs-banner::before { top: 2px; }
+.fuvs-banner::after { bottom: 0; }
+.fuvs-banner .shine { position: absolute; inset: 0; background: linear-gradient(100deg, transparent 40%, rgba(255, 255, 255, 0.35) 50%, transparent 60%); transform: translateX(-100%); }
+.fuvs-wrap.enter .fuvs-banner .shine { animation: fuvs-shine 1.4s 0.6s ease both; }
+
+/* body */
+.fuvs-body { display: flex; gap: 14px; min-height: 0; flex: 1; overflow: hidden; }
+.fuvs .party { flex: 1; display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 12px; overflow-y: auto; padding: 2px 4px 2px 2px; align-content: start; }
+.fuvs .hero { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35); }
+.fuvs-wrap.enter .hero { animation: fuvs-up 0.5s ease both; animation-delay: calc(0.7s + var(--i) * 0.12s); }
+.fuvs .hero.ko { filter: saturate(0.5); }
+.fuvs .hero header { display: flex; gap: 10px; align-items: center; }
+.fuvs .hero header img { width: 52px; height: 52px; object-fit: cover; border: 1px solid var(--acc); border-radius: 50%; }
+.fuvs .hero .nm { font-family: var(--disp); font-size: 22px; letter-spacing: 0.03em; }
+.fuvs .hero .lv { color: var(--ink3); font-size: 13px; }
+.fuvs .awards { display: flex; flex-direction: column; gap: 4px; }
+.fuvs .award { display: flex; gap: 8px; align-items: baseline; padding: 4px 8px; border-radius: 4px; background: linear-gradient(90deg, color-mix(in srgb, var(--acc) 26%, transparent), transparent); border-left: 3px solid var(--acc); }
+.fuvs .award.sup { background: linear-gradient(90deg, rgba(127, 214, 255, 0.24), transparent); border-left-color: var(--sup); }
+.fuvs .award i { color: var(--acc); }
+.fuvs .award.sup i { color: var(--sup); }
+.fuvs .award .t { font-family: var(--disp); font-size: 17px; letter-spacing: 0.05em; text-transform: uppercase; }
+.fuvs .award .v { color: var(--ink2); font-size: 13px; margin-left: auto; text-align: right; }
+.fuvs .recs { display: flex; flex-wrap: wrap; gap: 4px; }
+.fuvs .rec { font-size: 12px; font-family: var(--disp); letter-spacing: 0.06em; text-transform: uppercase; color: #1a1200; background: var(--acc); border-radius: 3px; padding: 1px 6px; animation: fuvs-pulse 1.6s ease-in-out infinite; }
+.fuvs .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.fuvs .col h4 { margin: 0 0 2px; font-family: var(--disp); font-weight: 400; letter-spacing: 0.1em; text-transform: uppercase; font-size: 13px; color: var(--acc); border-bottom: 1px solid var(--line2); }
+.fuvs .col.sup h4 { color: var(--sup); }
+.fuvs .st { display: flex; justify-content: space-between; gap: 6px; font-size: 13px; color: var(--ink2); padding: 1px 0; }
+.fuvs .st b { font-family: var(--disp); font-weight: 400; font-size: 15px; color: var(--ink); }
+.fuvs .st.zero { opacity: 0.45; }
+.fuvs .resources { display: flex; flex-direction: column; gap: 3px; }
+.fuvs .res { display: grid; grid-template-columns: 24px 1fr auto; gap: 6px; align-items: center; font-size: 12px; }
+.fuvs .res .rl { font-family: var(--disp); color: var(--ink3); }
+.fuvs .res .track { position: relative; height: 6px; background: rgba(255, 255, 255, 0.08); border-radius: 3px; overflow: hidden; }
+.fuvs .res .track i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px; }
+.fuvs .res .was { background: rgba(255, 255, 255, 0.18); }
+.fuvs .res .now { background: var(--acc); }
+.fuvs .res .rv { font-family: var(--disp); min-width: 86px; text-align: right; }
+.fuvs .res .rv small { color: var(--ink3); }
+.fuvs .res em { font-style: normal; }
+.fuvs .res em.down { color: var(--bad); }
+.fuvs .res em.up { color: var(--good); }
+
+.fuvs .side { width: 300px; flex: none; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; }
+.fuvs-wrap.enter .side { animation: fuvs-up 0.5s 1s ease both; }
+.fuvs section { background: var(--panel); border: 1px solid var(--line2); border-radius: 6px; padding: 8px 10px; }
+.fuvs h3 { margin: 0 0 6px; border: 0; font-family: var(--disp); font-weight: 400; letter-spacing: 0.1em; text-transform: uppercase; font-size: 15px; color: var(--acc); }
+.fuvs h3 small { color: var(--good); margin-left: 6px; font-size: 12px; }
+.fuvs .fact { display: grid; grid-template-columns: 1fr auto; padding: 2px 0; border-bottom: 1px solid var(--line2); }
+.fuvs .fact span { color: var(--ink2); font-size: 13px; }
+.fuvs .fact b { font-family: var(--disp); font-weight: 400; font-size: 17px; }
+.fuvs .fact small { grid-column: 1 / -1; color: var(--ink3); font-size: 12px; }
+.fuvs .foes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
+.fuvs .foes li { display: grid; grid-template-columns: 26px 1fr; column-gap: 8px; align-items: center; }
+.fuvs .foes img { width: 26px; height: 26px; object-fit: cover; border: 0; border-radius: 3px; grid-row: span 2; }
+.fuvs .foes small { color: var(--ink3); font-size: 11px; text-transform: capitalize; }
+.fuvs .foes li.down span { text-decoration: line-through; color: var(--ink3); }
+.fuvs .aff { margin-bottom: 4px; }
+.fuvs .aff .an { display: block; font-size: 13px; color: var(--ink2); }
+.fuvs .chip { display: inline-block; font-size: 12px; padding: 0 6px; margin: 1px 2px 1px 0; border-radius: 3px; background: rgba(255, 255, 255, 0.08); text-transform: capitalize; }
+.fuvs .chip.vulnerable { background: rgba(255, 107, 122, 0.25); }
+.fuvs .chip.resistant { background: rgba(127, 214, 255, 0.2); }
+.fuvs .chip.immune { background: rgba(180, 140, 255, 0.25); }
+.fuvs .chip.absorbs { background: rgba(107, 227, 160, 0.25); }
+
+/* rewards */
+.fuvs .rewards { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
+.fuvs-wrap.enter .rewards { animation: fuvs-up 0.5s 1.3s ease both; }
+.fuvs .rewards h3 { width: 100%; margin: 0; }
+.fuvs .rewards.over { outline: 2px dashed var(--acc); }
+.fuvs .zrow { display: flex; gap: 8px; align-items: center; }
+.fuvs .zrow input { width: 100px; }
+.fuvs .zline b { font-family: var(--disp); font-size: 20px; font-weight: 400; color: var(--acc2); }
+.fuvs .drop { flex: 1; min-width: 200px; padding: 6px 10px; border: 1px dashed var(--line); border-radius: 4px; color: var(--ink3); font-size: 13px; text-align: center; }
+.fuvs .loot { width: 100%; list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.fuvs .loot li { display: flex; gap: 6px; align-items: center; padding: 3px 6px; border: 1px solid var(--line2); border-radius: 4px; background: rgba(0, 0, 0, 0.25); }
+.fuvs .loot img { width: 24px; height: 24px; border: 0; }
+.fuvs .loot .to { color: var(--ink2); font-size: 13px; }
+.fuvs input, .fuvs select { background: rgba(0, 0, 0, 0.4); color: var(--ink); border: 1px solid var(--line2); border-radius: 3px; height: 28px; }
+.fuvs button { width: auto; font-family: var(--text); color: var(--ink); background: rgba(255, 255, 255, 0.05); border: 1px solid var(--line2); border-radius: 3px; padding: 4px 10px; line-height: 1.2; cursor: pointer; }
+.fuvs button:hover { border-color: var(--line); background: rgba(90, 169, 255, 0.16); box-shadow: none; }
+.fuvs button.cta { font-family: var(--disp); font-size: 17px; letter-spacing: 0.08em; text-transform: uppercase; padding: 6px 18px; border-color: var(--acc); color: var(--acc2); background: linear-gradient(90deg, color-mix(in srgb, var(--acc) 35%, transparent), color-mix(in srgb, var(--acc) 8%, transparent)); }
+.fuvs footer { display: flex; gap: 8px; align-items: center; }
+.fuvs-wrap.enter footer { animation: fuvs-up 0.5s 1.4s ease both; }
+.fuvs footer .sp { flex: 1; }
+.fuvs-ready { display: flex; flex-wrap: wrap; gap: 10px; color: var(--ink3); font-size: 13px; }
+.fuvs-ready .ok { color: var(--good); }
+.fuvs .empty { color: var(--ink3); }
+
+@keyframes fuvs-drop { from { opacity: 0; transform: translateY(-60px) scale(1.6); } to { opacity: 1; transform: none; } }
+@keyframes fuvs-shine { to { transform: translateX(100%); } }
+@keyframes fuvs-up { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
+@keyframes fuvs-fade { from { opacity: 0; } }
+@keyframes fuvs-out { to { opacity: 0; transform: scale(0.98); } }
+@keyframes fuvs-pulse { 50% { filter: brightness(1.35); } }
+@media (prefers-reduced-motion: reduce) {
+	.fuvs *, #fuvs-root { animation: none !important; }
+}
+@media (max-width: 900px) {
+	.fuvs-body { flex-direction: column; overflow-y: auto; }
+	.fuvs .side { width: auto; }
+}
+
+/* history */
+.fuvs-history .window-content { background: #0b1424; color: var(--ink); font-family: var(--text); padding: 10px 14px; }
+.fuvs-hist h3 { font-family: var(--disp); font-weight: 400; letter-spacing: 0.1em; text-transform: uppercase; color: #f2c45a; border-bottom: 1px solid var(--line2); }
+.fuvs-hist .battles { list-style: none; margin: 0 0 12px; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.fuvs-hist .battles li { display: flex; gap: 4px; }
+.fuvs-hist .battles li button { width: auto; color: var(--ink); background: rgba(255, 255, 255, 0.04); border: 1px solid var(--line2); }
+.fuvs-hist .battles .row { flex: 1; display: grid; grid-template-columns: auto 1fr; gap: 0 10px; text-align: left; padding: 4px 8px; }
+.fuvs-hist .battles .row b { font-family: var(--disp); font-weight: 400; letter-spacing: 0.06em; text-transform: uppercase; }
+.fuvs-hist .battles .row small { grid-column: 1 / -1; color: var(--ink3); }
+.fuvs-hist .tone-gold .row b { color: #f2c45a; }
+.fuvs-hist .tone-red .row b { color: #ff5a6a; }
+.fuvs-hist .tone-blue .row b { color: #5aa9ff; }
+.fuvs-hist .tone-violet .row b { color: #b48cff; }
+.fuvs-hist .tone-green .row b { color: #6be3a0; }
+.fuvs-hist .tw { overflow-x: auto; }
+.fuvs-hist table { font-size: 13px; background: none; border: 0; }
+.fuvs-hist th, .fuvs-hist td { padding: 2px 6px; text-align: right; white-space: nowrap; }
+.fuvs-hist tbody th { text-align: left; }
+.fuvs-hist tr { background: none !important; }
+.fuvs-hist .empty { color: var(--ink3); }
+.fuvs-end { width: auto; margin: 4px; }
+.fuvs-chat h3 { margin: 0; }
+.fuvs-chat ul { margin: 4px 0 0; padding-left: 18px; }

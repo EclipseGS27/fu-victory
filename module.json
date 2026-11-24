@@ -1,0 +1,44 @@
+{
+  "id": "fu-victory",
+  "title": "Fabula Ultima Victory Screen",
+  "description": "An animated end-of-battle screen for Project FU: victory, defeat, retreat, surrender or negotiated outcomes, combat and support statistics for every hero, battle records that reward healers and supporters too, affinities discovered, GM rewards with zenit and loot distribution, battle history and personal bests, synced for every player.",
+  "version": "0.1.0",
+  "authors": [
+    {
+      "name": "George Sowidan"
+    }
+  ],
+  "compatibility": {
+    "minimum": "13",
+    "verified": "13"
+  },
+  "relationships": {
+    "systems": [
+      {
+        "id": "projectfu",
+        "type": "system",
+        "compatibility": {
+          "minimum": "4.14.0"
+        }
+      }
+    ],
+    "recommends": [
+      {
+        "id": "fu-battle-ui",
+        "type": "module",
+        "reason": "Its fanfare plays on victories."
+      }
+    ]
+  },
+  "esmodules": [
+    "scripts/main.mjs"
+  ],
+  "styles": [
+    "styles/victory.css"
+  ],
+  "socket": true,
+  "url": "https://github.com/EclipseGS27/fu-victory",
+  "manifest": "https://raw.githubusercontent.com/EclipseGS27/fu-victory/main/module.json",
+  "download": "https://github.com/EclipseGS27/fu-victory/releases/download/v0.1.0/fu-victory.zip",
+  "bugs": "https://github.com/EclipseGS27/fu-victory/issues"
+}
