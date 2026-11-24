@@ -33,6 +33,8 @@ export const blankActor = () => ({
 });
 
 function sideOf(combatant) {
+	// a Pilot's vehicle (Advanced Class Mechanics) is part of its pilot, not a hero of its own
+	if (combatant.actor?.getFlag?.('fu-class-mechanics', 'vehicleOf')) return 'others';
 	const d = combatant.token?.disposition ?? combatant.actor?.prototypeToken?.disposition ?? 0;
 	if (combatant.actor?.type === 'character') return 'heroes';
 	return d === 1 ? 'heroes' : d === -1 ? 'foes' : 'others';
@@ -182,8 +184,21 @@ export function record(rec) {
 	else game.socket.emit(SOCKET, { type: 'rec', rec });
 }
 
-export function onSocketRecord(msg) {
-	if (msg?.type === 'rec' && activeGM()) apply(msg.rec);
+/** Records from players only count for actors that player owns (what their own client legitimately reports) */
+export function onSocketRecord(msg, userId) {
+	if (msg?.type !== 'rec' || !activeGM()) return;
+	const user = game.users.get(userId);
+	if (user && !user.isGM) {
+		const owns = (uuid) => {
+			try {
+				return !!uuid && !!fromUuidSync(uuid)?.testUserPermission?.(user, 'OWNER');
+			} catch {
+				return false;
+			}
+		};
+		if (!owns(msg.rec?.src) && !owns(msg.rec?.tgt)) return;
+	}
+	apply(msg.rec);
 }
 
 /* ---------- hooks ---------- */

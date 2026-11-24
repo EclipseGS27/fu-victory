@@ -91,19 +91,21 @@ Hooks.once('init', () => {
 });
 
 Hooks.once('ready', () => {
-	game.socket.on(SOCKET, (msg) => {
+	game.socket.on(SOCKET, (msg, userId) => {
+		// only a GM shows, changes or closes the screen for everyone
+		const fromGM = !!game.users.get(userId)?.isGM;
 		switch (msg?.type) {
 			case 'rec':
-				return onSocketRecord(msg);
+				return onSocketRecord(msg, userId);
 			case 'show':
-				if (!game.user.isGM || msg.replay) showScreen(msg.report, { replay: !!msg.replay });
+				if (fromGM && (!game.user.isGM || msg.replay)) showScreen(msg.report, { replay: !!msg.replay });
 				return;
 			case 'state':
-				return receiveState(msg.report);
+				return fromGM ? receiveState(msg.report) : undefined;
 			case 'ready':
 				return receiveReady(msg.user);
 			case 'close':
-				if (isOpen()) closeScreen(false);
+				if (fromGM && isOpen()) closeScreen(false);
 				return;
 		}
 	});
