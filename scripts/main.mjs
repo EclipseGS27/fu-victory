@@ -59,6 +59,11 @@ Hooks.once('init', () => {
 	reg('showSupport', { name: 'Show support stats', hint: 'Healing, damage prevented, buffs, debuffs, cleansing and revives, next to the damage numbers.', scope: 'world', type: Boolean, default: true });
 	reg('showResources', { name: 'Show HP / MP / IP', scope: 'world', type: Boolean, default: true });
 	reg('showAffinities', { name: 'Show affinities discovered', scope: 'world', type: Boolean, default: true });
+	reg('background', { name: 'Background image', hint: 'Optional image behind the screen (all outcomes). Empty: an animated gradient in the outcome colour.', scope: 'world', type: String, default: '', filePicker: 'image' });
+	for (const [k, o] of Object.entries(OUTCOMES)) reg(`bg_${k}`, { name: `Background: ${o.label}`, hint: 'Optional, overrides the shared background for this outcome.', scope: 'world', type: String, default: '', filePicker: 'image' });
+	reg('fonts', { name: 'Typography', scope: 'world', type: String, default: 'jrpg', choices: { jrpg: 'JRPG (Antonio and PT Sans)', foundry: 'Foundry default', storybook: 'Storybook (serif)' } });
+	reg('fontBanner', { name: 'Banner font (optional)', hint: 'Name of any font installed in Foundry (Settings → Fonts) to use for the banner and headings.', scope: 'world', type: String, default: '' });
+	reg('animations', { name: 'Animations', hint: 'Off: the screen appears without the letter drop, count-up and slide-in effects.', scope: 'client', type: Boolean, default: true });
 	reg('historySize', { name: 'Battles kept in the history', scope: 'world', type: Number, range: { min: 5, max: 100, step: 5 }, default: 30 });
 	reg('fanfare', { name: 'Fanfare', scope: 'client', type: Boolean, default: true });
 	reg('volume', { name: 'Fanfare volume', scope: 'client', type: Number, range: { min: 0, max: 1, step: 0.05 }, default: 0.7 });

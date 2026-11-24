@@ -29,8 +29,9 @@ export const res = (actor, key) => ({ value: num(actor?.system?.resources?.[key]
 
 export function activeParty() {
 	try {
-		const id = game.settings.get(SYSTEM, 'activeParty');
-		const p = id ? game.actors.get(id) : null;
+		// Project FU stores the active party under 'optionActiveParty' (an actor id)
+		const v = game.settings.get(SYSTEM, 'optionActiveParty');
+		const p = v instanceof Actor ? v : v ? game.actors.get(v) : null;
 		if (p) return p;
 	} catch {
 		/* older system */

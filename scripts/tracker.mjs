@@ -39,7 +39,7 @@ function sideOf(combatant) {
 }
 
 function snapshot(actor) {
-	return { hp: res(actor, 'hp'), mp: res(actor, 'mp'), ip: res(actor, 'ip') };
+	return { hp: res(actor, 'hp'), mp: res(actor, 'mp'), ip: res(actor, 'ip'), fp: res(actor, 'fp') };
 }
 
 /** Make sure the stats for this combat exist and know every combatant */
@@ -48,13 +48,15 @@ export function ensure(combat) {
 	let s = STATS.get(combat.id);
 	if (!s) {
 		s = combat.getFlag(MODULE_ID, 'stats') ?? { id: combat.id, started: Date.now(), scene: combat.scene?.name ?? '', actors: {}, affinities: {}, lastHit: {}, biggest: null, hp: {} };
+		s.down ??= {};
 		STATS.set(combat.id, s);
 	}
 	for (const c of combat.combatants) {
 		const a = c.actor;
 		if (!a || s.actors[a.uuid]) continue;
-		s.actors[a.uuid] = { name: c.name ?? a.name, img: c.token?.texture?.src ?? a.img, side: sideOf(c), pc: a.type === 'character', level: num(a.system?.level?.value), rank: a.system?.rank?.value ?? '', villain: a.system?.villain?.value ?? '', start: snapshot(a), ...blankActor() };
+		s.actors[a.uuid] = { name: c.name ?? a.name, img: c.token?.texture?.src ?? a.img, side: sideOf(c), pc: a.type === 'character', level: num(a.system?.level?.value), rank: a.system?.rank?.value ?? '', replaced: num(a.system?.rank?.replacedSoldiers, 1), villain: a.system?.villain?.value ?? '', start: snapshot(a), ...blankActor() };
 		s.hp[a.uuid] = res(a, 'hp').value;
+		s.down[a.uuid] = s.hp[a.uuid] <= 0;
 	}
 	return s;
 }
@@ -85,14 +87,22 @@ function apply(rec) {
 			if (!tgt) break;
 			const dealt = Math.max(0, Math.min(rec.result, rec.hpBefore));
 			tgt.taken += dealt;
-			const prevented = rec.affinity >= 1 || rec.result < rec.amount ? Math.max(0, rec.amount - Math.max(0, rec.result)) : 0;
-			if (prevented && rec.hpBefore > rec.result) tgt.prevented += prevented;
+			// resistances, immunities, absorption, Guard and other reductions
+			tgt.prevented += Math.max(0, rec.amount - Math.max(0, rec.result));
 			if (src && src !== tgt) {
 				src.dealt += dealt;
 				src.hits += 1;
 				src.biggest = Math.max(src.biggest, dealt);
 				if (!s.biggest || dealt > s.biggest.amount) s.biggest = { amount: dealt, src: rec.src, tgt: rec.tgt, type: rec.dtype };
 				s.lastHit[rec.tgt] = rec.src;
+			}
+			// this hit took them to 0: a fall, and a finishing blow for the attacker
+			if (rec.hpBefore > 0 && dealt >= rec.hpBefore) {
+				if (src && src !== tgt && src.side !== tgt.side) src.kos += 1;
+				if (!s.down[rec.tgt]) {
+					s.down[rec.tgt] = true;
+					tgt.falls += 1;
+				}
 			}
 			if (rec.dtype && AFFINITY[rec.affinity] && tgt.side !== 'heroes') {
 				(s.affinities[rec.tgt] ??= {})[rec.dtype] = AFFINITY[rec.affinity];
@@ -105,6 +115,7 @@ function apply(rec) {
 				tgt.healedReceived += rec.amount;
 				if (src) src.healed += rec.amount;
 				if (rec.revive && src && src !== tgt) src.revives += 1;
+				if (rec.amount > 0) s.down[rec.tgt] = false;
 			} else if (rec.res === 'mp' && src && src !== tgt) src.mpRestored += rec.amount;
 			break;
 		}
@@ -132,6 +143,24 @@ function apply(rec) {
 	save(combat);
 }
 
+/** The actor whose turn it is (who most likely caused an effect the system reports without a source) */
+function turnActor() {
+	return game.combat?.combatant?.actor?.uuid ?? null;
+}
+
+/** Where a status effect came from: the source Project FU stores on the effect, else whoever's turn it is */
+function statusSource(actor, status) {
+	try {
+		const fx = actor.effects.filter((e) => e.statuses?.has(status));
+		const latest = fx[fx.length - 1];
+		const info = latest?.getFlag?.('projectfu', 'Source') ?? latest?.flags?.projectfu?.Source;
+		if (info?.actorUuid) return info.actorUuid;
+	} catch {
+		/* no flag */
+	}
+	return turnActor();
+}
+
 /** Every client: send a record to the active GM */
 export function record(rec) {
 	if (!game.combat?.started) return;
@@ -155,12 +184,40 @@ export function installTracker() {
 			console.warn(`${MODULE_ID} | damage`, err);
 		}
 	});
+	/*
+	 * Healing: the system's gain event has the amount actually recovered but no source; the resource event
+	 * that follows it right away has the source. Hold each gain briefly and attribute it when the resource
+	 * event arrives (or to whoever's turn it is, if it never does).
+	 */
+	const pending = new Map(); // `${uuid}|${res}` -> { rec, timer }
+	const flush = (key, src) => {
+		const p = pending.get(key);
+		if (!p) return;
+		clearTimeout(p.timer);
+		pending.delete(key);
+		record({ ...p.rec, src: src ?? p.rec.src });
+	};
 	Hooks.on('projectfu.events.gain', (ev) => {
 		try {
 			if (!ev?.actor || !['hp', 'mp'].includes(ev.resource)) return;
-			record({ k: 'gain', res: ev.resource, amount: num(ev.amount), src: ev.source?.actor?.uuid ?? null, tgt: ev.actor.uuid, revive: ev.resource === 'hp' && res(ev.actor, 'hp').value <= 0 });
+			const amount = num(ev.amount);
+			if (amount <= 0) return;
+			const now = res(ev.actor, ev.resource).value;
+			const key = `${ev.actor.uuid}|${ev.resource}`;
+			flush(key);
+			const rec = { k: 'gain', res: ev.resource, amount, src: turnActor(), tgt: ev.actor.uuid, revive: ev.resource === 'hp' && now - amount <= 0 };
+			pending.set(key, { rec, timer: setTimeout(() => flush(key), 400) });
 		} catch (err) {
 			console.warn(`${MODULE_ID} | gain`, err);
+		}
+	});
+	Hooks.on('projectfu.events.resource', (ev) => {
+		try {
+			if (!['hp', 'mp'].includes(ev?.resource) || num(ev.amount) < 0) return;
+			const src = ev.source?.actor?.uuid ?? null;
+			for (const t of ev.targets ?? []) if (t?.actor) flush(`${t.actor.uuid}|${ev.resource}`, src);
+		} catch (err) {
+			console.warn(`${MODULE_ID} | resource`, err);
 		}
 	});
 	Hooks.on('projectfu.events.checks.resolve', (ev) => {
@@ -168,9 +225,11 @@ export function installTracker() {
 		if (!c || !(c.critical || c.fumble)) return;
 		record({ k: 'check', src: ev.source?.actor?.uuid ?? null, critical: !!c.critical, fumble: !!c.fumble });
 	});
+	// the status event names the affected actor as its source, so look for the real one
 	Hooks.on('projectfu.events.status', (ev) => {
 		if (!ev?.actor || !ev.status) return;
-		record({ k: 'status', src: ev.source?.actor?.uuid ?? null, tgt: ev.actor.uuid, status: ev.status, enabled: !!ev.enabled });
+		const src = ev.enabled ? statusSource(ev.actor, ev.status) : turnActor();
+		record({ k: 'status', src, tgt: ev.actor.uuid, status: ev.status, enabled: !!ev.enabled });
 	});
 
 	/* GM side: HP / MP / IP changes give knock-outs, defeated enemies and resources spent */
@@ -182,13 +241,12 @@ export function installTracker() {
 		const me = s.actors[actor.uuid];
 		if (!me) return;
 		if (r.hp?.value !== undefined) {
-			const before = num(s.hp[actor.uuid], res(actor, 'hp').max);
+			// falls from any cause (finishing blows are credited by the damage record itself)
 			const now = res(actor, 'hp').value;
-			if (before > 0 && now <= 0) {
+			if (now <= 0 && !s.down[actor.uuid]) {
+				s.down[actor.uuid] = true;
 				me.falls += 1;
-				const killer = s.actors[s.lastHit[actor.uuid]];
-				if (killer && killer.side !== me.side) killer.kos += 1;
-			}
+			} else if (now > 0) s.down[actor.uuid] = false;
 			s.hp[actor.uuid] = now;
 		}
 		save(game.combat);

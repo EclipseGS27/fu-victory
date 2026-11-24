@@ -36,10 +36,28 @@ export function showScreen(report, { replay = false, sound = true } = {}) {
 	current = { report, ready: new Set(), replay };
 	root = document.createElement('div');
 	root.id = 'fuvs-root';
-	root.className = `fuvs tone-${OUTCOMES[report.outcome]?.tone ?? 'gold'} outcome-${report.outcome}`;
+	root.className = `fuvs tone-${OUTCOMES[report.outcome]?.tone ?? 'gold'} outcome-${report.outcome}${setting('animations') === false ? ' no-anim' : ''}`;
+	applyLook(root, report.outcome);
 	document.body.append(root);
 	render(true);
 	if (sound && !replay) playFanfare(report.outcome);
+}
+
+const FONTS = {
+	jrpg: ["'FUVS Antonio', 'Antonio', sans-serif", "'FUVS PT Sans', 'PT Sans', sans-serif"],
+	foundry: ['var(--font-primary, Signika), sans-serif', 'var(--font-primary, Signika), sans-serif'],
+	storybook: ["'Modesto Condensed', 'Palatino Linotype', Georgia, serif", "'Palatino Linotype', Georgia, serif"],
+};
+
+/** GM customization: background image (per outcome or shared), fonts */
+function applyLook(el, outcome) {
+	const bg = setting(`bg_${outcome}`) || setting('background');
+	if (bg) el.style.setProperty('--fuvs-bg', `url("${String(bg).replace(/["\\]/g, '')}")`);
+	const [disp, text] = FONTS[setting('fonts')] ?? FONTS.jrpg;
+	const custom = String(setting('fontBanner') ?? '').replace(/[;{}<>"]/g, '').trim();
+	el.style.setProperty('--disp', custom ? `${custom}, ${disp}` : disp);
+	el.style.setProperty('--text', text);
+	if (bg) el.classList.add('has-bg');
 }
 
 export function closeScreen(notify = true) {
@@ -93,8 +111,20 @@ function heroCard(h, i) {
 			${show('showCombat') ? `<div class="col"><h4>Combat</h4>${OFFENSE.map((s) => stat(h, s)).join('')}</div>` : ''}
 			${show('showSupport') ? `<div class="col sup"><h4>Support</h4>${SUPPORT.map((s) => stat(h, s)).join('')}</div>` : ''}
 		</div>
-		${show('showResources') ? `<div class="resources">${bar('HP', h.start.hp, h.end.hp)}${bar('MP', h.start.mp, h.end.mp)}${bar('IP', h.start.ip, h.end.ip)}</div>` : ''}
+		${show('showResources') ? `<div class="resources">${bar('HP', h.start.hp, h.end.hp)}${bar('MP', h.start.mp, h.end.mp)}${bar('IP', h.start.ip, h.end.ip)}${spentLine(h)}</div>` : ''}
 	</article>`;
+}
+
+/** Fabula Points and what the hero spent during the battle */
+function spentLine(h) {
+	const parts = [];
+	if (h.end.fp && h.pc) {
+		const d = num(h.end.fp.value) - num(h.start.fp?.value ?? h.end.fp.value);
+		parts.push(`<span>FP <b>${fmt(h.end.fp.value)}</b>${d ? ` <em class="${d < 0 ? 'down' : 'up'}">${d > 0 ? '+' : ''}${fmt(d)}</em>` : ''}</span>`);
+	}
+	const spent = [h.mpSpent ? `${fmt(h.mpSpent)} MP` : '', h.ipSpent ? `${fmt(h.ipSpent)} IP` : ''].filter(Boolean).join(' · ');
+	parts.push(`<span>Spent <b>${spent || 'nothing'}</b></span>`);
+	return `<div class="spent">${parts.join('')}</div>`;
 }
 
 function side(r) {
@@ -129,7 +159,7 @@ function rewardsHtml(r) {
 			gm
 				? `<div class="zrow"><label>${esc(currency())} <input type="number" min="0" step="10" data-field="zenit" value="${num(rw.zenit)}"></label>
 				<select data-field="split">${Object.entries(split).map(([k, l]) => `<option value="${k}" ${k === rw.split ? 'selected' : ''}>${l}</option>`).join('')}</select>
-				<button type="button" data-act="suggest" data-tooltip="Homebrew guide: 10 × the level of each defeated enemy (× its soldiers replaced)">Suggest</button></div>
+				<button type="button" data-act="suggest" data-tooltip="Homebrew guide: 10 × each defeated enemy's level, × the soldiers it counts as (elite 2, champion X)">Suggest</button></div>
 				<div class="drop">Drop items here from the sidebar, a compendium or an enemy's sheet</div>`
 				: rw.zenit
 					? `<div class="zline"><b>${fmt(rw.zenit)} ${esc(currency())}</b> ${split[rw.split] ?? ''}</div>`
@@ -150,7 +180,7 @@ function readyLine() {
 function render(first) {
 	if (!root || !current) return;
 	const r = current.report;
-	current.first = first;
+	current.first = first && setting('animations') !== false;
 	const title = titleFor(r.outcome);
 	const letters = [...title].map((ch, i) => `<span style="--i:${i}">${ch === ' ' ? '&nbsp;' : esc(ch)}</span>`).join('');
 	const when = new Date(r.date).toLocaleString();
@@ -169,7 +199,7 @@ function render(first) {
 		</footer>
 	</div>`;
 	wire();
-	if (first) countUp();
+	if (current.first) countUp();
 }
 
 function countUp() {
@@ -216,7 +246,8 @@ function wire() {
 		push();
 	});
 	root.querySelector('[data-act=suggest]')?.addEventListener('click', () => {
-		rw.zenit = current.report.foes.filter((f) => f.defeated).reduce((s, f) => s + 10 * Math.max(1, num(f.level)) * (f.rank === 'champion' ? 2 : f.rank === 'elite' ? 1.5 : 1), 0);
+		const soldiers = (f) => (f.rank === 'champion' ? Math.max(1, num(f.replaced, 2)) : f.rank === 'elite' ? 2 : 1);
+		rw.zenit = current.report.foes.filter((f) => f.defeated).reduce((s, f) => s + 10 * Math.max(1, num(f.level)) * soldiers(f), 0);
 		rw.zenit = Math.round(rw.zenit / 10) * 10;
 		render(false);
 		push();

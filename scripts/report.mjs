@@ -66,7 +66,7 @@ export function buildReport(combat, stats, outcome) {
 	const foes = [];
 	for (const [uuid, a] of Object.entries(stats.actors)) {
 		const actor = actorFrom(uuid);
-		const end = actor ? { hp: res(actor, 'hp'), mp: res(actor, 'mp'), ip: res(actor, 'ip') } : a.start;
+		const end = actor ? { hp: res(actor, 'hp'), mp: res(actor, 'mp'), ip: res(actor, 'ip'), fp: res(actor, 'fp') } : a.start;
 		const row = { uuid, ...blankActor(), ...a, end };
 		if (a.side === 'heroes') heroes.push(row);
 		else if (a.side === 'foes') foes.push(row);
@@ -99,7 +99,7 @@ export function buildReport(combat, stats, outcome) {
 		rounds: num(combat.round),
 		duration: Date.now() - num(stats.started, Date.now()),
 		heroes,
-		foes: foes.map((f) => ({ uuid: f.uuid, name: f.name, img: f.img, level: f.level, rank: f.rank, villain: f.villain, defeated: f.end.hp.value <= 0, dealt: f.dealt })),
+		foes: foes.map((f) => ({ uuid: f.uuid, name: f.name, img: f.img, level: f.level, rank: f.rank, replaced: f.replaced, villain: f.villain, defeated: f.end.hp.value <= 0, dealt: f.dealt })),
 		totals: {
 			dealt: heroes.reduce((s, h) => s + h.dealt, 0),
 			taken: heroes.reduce((s, h) => s + h.taken, 0),
