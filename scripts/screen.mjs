@@ -33,7 +33,9 @@ export const isOpen = () => !!root;
 
 export function showScreen(report, { replay = false, sound = true } = {}) {
 	closeScreen(false);
-	current = { report, ready: new Set(), replay };
+	current = { report, ready: new Set(), replay, view: null };
+	current.view = firstView(report);
+	document.addEventListener('keydown', onKey);
 	root = document.createElement('div');
 	root.id = 'fuvs-root';
 	root.className = `fuvs tone-${OUTCOMES[report.outcome]?.tone ?? 'gold'} outcome-${report.outcome}${setting('animations') === false ? ' no-anim' : ''}`;
@@ -66,6 +68,7 @@ export function closeScreen(notify = true) {
 	const r = root;
 	setTimeout(() => r.remove(), 350);
 	root = null;
+	document.removeEventListener('keydown', onKey);
 	if (notify && current && !game.user.isGM && !current.replay) game.socket.emit(SOCKET, { type: 'ready', user: game.user.id });
 	current = null;
 }
@@ -94,23 +97,52 @@ function bar(label, start, end) {
 		<span class="rv">${fmt(end.value)}<small>/${fmt(end.max)}</small> <em class="${diff < 0 ? 'down' : diff > 0 ? 'up' : ''}">${diff > 0 ? '+' : ''}${diff ? fmt(diff) : ''}</em></span></div>`;
 }
 
-function stat(h, [k, label]) {
+function stat(h, [k, label], zero = current.first) {
 	const v = num(h[k]);
-	return `<div class="st ${v ? '' : 'zero'}"><span>${label}</span><b data-n="${v}">${current.first ? 0 : fmt(v)}</b></div>`;
+	return `<div class="st ${v ? '' : 'zero'}"><span>${label}</span><b data-n="${v}">${zero ? 0 : fmt(v)}</b></div>`;
 }
 
-function heroCard(h, i) {
+/** Extra numbers shown when one hero has the whole page */
+const DETAIL = [
+	['hits', 'Hits landed'],
+	['fumbles', 'Fumbles'],
+	['falls', 'Times fallen'],
+	['healedReceived', 'Healing received'],
+	['mpSpent', 'MP spent'],
+	['ipSpent', 'IP spent'],
+];
+
+/** One hero's share of what the whole party did */
+function shares(h, r) {
+	const part = (k) => {
+		const total = r.heroes.reduce((s, x) => s + num(x[k]), 0);
+		return total ? Math.round((num(h[k]) / total) * 100) : 0;
+	};
+	const rows = [
+		['dealt', 'of the party damage'],
+		['healed', 'of the party healing'],
+		['prevented', 'of the damage prevented'],
+		['taken', 'of the damage taken'],
+	].filter(([k]) => r.heroes.some((x) => num(x[k])));
+	if (!rows.length) return '';
+	return `<div class="shares">${rows.map(([k, label]) => `<div class="sh"><span class="track"><i style="width:${part(k)}%"></i></span><b>${part(k)}%</b> <small>${label}</small></div>`).join('')}</div>`;
+}
+
+function heroCard(h, i, { solo = false, zero = current.first } = {}) {
 	const show = (k) => setting(k) !== false;
+	const st = (s) => stat(h, s, zero);
 	const awards = (h.awards ?? []).map((a) => `<div class="award ${a.support ? 'sup' : ''}" data-tooltip="${esc(a.blurb)}"><i class="fa-solid ${a.support ? 'fa-hand-holding-heart' : 'fa-medal'}"></i><span class="t">${esc(a.title)}</span>${a.value != null ? `<span class="v">${fmt(a.value)} ${esc(a.unit)}</span>` : `<span class="v">${esc(a.blurb)}</span>`}</div>`).join('');
 	const recs = (h.newRecords ?? []).map((k) => `<span class="rec">New record: ${esc(RECORD_LABEL[k] ?? k)}</span>`).join('');
 	const ko = h.end.hp.value <= 0;
-	return `<article class="hero ${ko ? 'ko' : ''}" style="--i:${i}">
+	return `<article class="hero ${ko ? 'ko' : ''} ${solo ? 'solo' : ''}" style="--i:${i}">
 		<header><img src="${esc(h.img)}" alt=""><div><div class="nm">${esc(h.name)}</div>${h.level ? `<div class="lv">Level ${h.level}${ko ? ' · KO' : ''}</div>` : ''}</div></header>
 		<div class="awards">${awards}</div>${recs ? `<div class="recs">${recs}</div>` : ''}
 		<div class="cols">
-			${show('showCombat') ? `<div class="col"><h4>Combat</h4>${OFFENSE.map((s) => stat(h, s)).join('')}</div>` : ''}
-			${show('showSupport') ? `<div class="col sup"><h4>Support</h4>${SUPPORT.map((s) => stat(h, s)).join('')}</div>` : ''}
+			${show('showCombat') ? `<div class="col"><h4>Combat</h4>${OFFENSE.map(st).join('')}</div>` : ''}
+			${show('showSupport') ? `<div class="col sup"><h4>Support</h4>${SUPPORT.map(st).join('')}</div>` : ''}
+			${solo ? `<div class="col more"><h4>Details</h4>${DETAIL.map(st).join('')}</div>` : ''}
 		</div>
+		${solo ? shares(h, current.report) : ''}
 		${show('showResources') ? `<div class="resources">${bar('HP', h.start.hp, h.end.hp)}${bar('MP', h.start.mp, h.end.mp)}${bar('IP', h.start.ip, h.end.ip)}${spentLine(h)}</div>` : ''}
 	</article>`;
 }
@@ -189,7 +221,7 @@ function render(first) {
 		<div class="fuvs-banner"><div class="shine"></div><h1>${letters}</h1>
 			<div class="sub">${esc(r.scene || 'Battle')} · ${r.rounds} round${r.rounds === 1 ? '' : 's'} · ${duration(r.duration)}${current.replay ? ` · ${esc(when)}` : ''}</div></div>
 		<div class="fuvs-body">
-			<div class="party">${r.heroes.map(heroCard).join('') || '<p class="empty">No heroes took part.</p>'}</div>
+			${heroesHtml(r)}
 			${side(r)}
 		</div>
 		${rewardsHtml(r)}
@@ -202,9 +234,58 @@ function render(first) {
 	if (current.first) countUp();
 }
 
-function countUp() {
-	const els = root.querySelectorAll('[data-n]');
-	const start = performance.now() + 900;
+/** "One hero at a time": a tab per hero and one for the whole party; otherwise every hero side by side */
+function heroesHtml(r) {
+	const grid = (zero) => `<div class="party">${r.heroes.map((h, i) => heroCard(h, i, { zero })).join('') || '<p class="empty">No heroes took part.</p>'}</div>`;
+	if (current.view == null || !r.heroes.length) return grid(current.first);
+	const tabs = r.heroes
+		.map((h, i) => `<button type="button" data-act="view" data-i="${i}" class="${current.view === i ? 'on' : ''} ${h.end.hp.value <= 0 ? 'ko' : ''}"><img src="${esc(h.img)}" alt=""><span>${esc(h.name)}</span></button>`)
+		.join('');
+	const zero = current.first || current.fresh;
+	const body = current.view === 'all' ? grid(zero) : heroCard(r.heroes[current.view], 0, { solo: true, zero });
+	return `<div class="pager"><nav class="hero-tabs">${tabs}<button type="button" data-act="view" data-i="all" class="${current.view === 'all' ? 'on' : ''}"><i class="fa-solid fa-users"></i><span>Party</span></button>
+		<span class="sp"></span><small class="keys">← → to switch</small></nav>${body}</div>`;
+}
+
+/** Which page a hero-by-hero screen opens on */
+function firstView(report) {
+	const layout = setting('layout') ?? 'party';
+	if (layout === 'party' || !report.heroes?.length) return null;
+	if (layout === 'mine' && !game.user.isGM) {
+		const mine = report.heroes.findIndex((h) => {
+			const a = fromUuidSync(h.uuid);
+			return a?.isOwner || h.uuid === game.user.character?.uuid;
+		});
+		if (mine >= 0) return mine;
+	}
+	return 0;
+}
+
+function switchView(v) {
+	if (!current || current.view == null) return;
+	const n = current.report.heroes.length;
+	if (v === 'next' || v === 'prev') {
+		const order = [...Array(n).keys(), 'all'];
+		const at = order.indexOf(current.view);
+		v = order[(at + (v === 'next' ? 1 : order.length - 1)) % order.length];
+	}
+	if (v === current.view) return;
+	current.view = v;
+	current.fresh = setting('animations') !== false;
+	render(false);
+	current.fresh = false;
+	if (setting('animations') !== false) countUp(root.querySelector('.pager'), 0);
+}
+
+function onKey(e) {
+	if (!root || current?.view == null || e.target?.closest?.('input, select, textarea')) return;
+	if (e.key === 'ArrowRight') switchView('next');
+	else if (e.key === 'ArrowLeft') switchView('prev');
+}
+
+function countUp(scope = root, delay = 900) {
+	const els = scope?.querySelectorAll('[data-n]') ?? [];
+	const start = performance.now() + delay;
 	const len = 1100;
 	const step = (t) => {
 		if (!root) return;
@@ -235,6 +316,7 @@ function wire() {
 		closeScreen(false);
 	});
 	root.querySelector('[data-act=history]')?.addEventListener('click', () => game.modules.get(MODULE_ID).api.history());
+	root.querySelectorAll('[data-act=view]').forEach((b) => b.addEventListener('click', () => switchView(b.dataset.i === 'all' ? 'all' : num(b.dataset.i))));
 	if (!game.user.isGM || current.report.rewards.given) return;
 	const rw = current.report.rewards;
 	root.querySelector('[data-field=zenit]')?.addEventListener('change', (e) => {

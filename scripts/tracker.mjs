@@ -1,4 +1,4 @@
-import { MODULE_ID, SOCKET, activeGM, num, res } from './util.mjs';
+import { MODULE_ID, SOCKET, activeGM, num, onFuEvent, res } from './util.mjs';
 
 /**
  * Battle statistics. Project FU runs damage, healing, checks and statuses on the client that triggered them,
@@ -47,7 +47,7 @@ export function ensure(combat) {
 	if (!combat) return null;
 	let s = STATS.get(combat.id);
 	if (!s) {
-		s = combat.getFlag(MODULE_ID, 'stats') ?? { id: combat.id, started: Date.now(), scene: combat.scene?.name ?? '', actors: {}, affinities: {}, lastHit: {}, biggest: null, hp: {} };
+		s = loadStats(combat) ?? { id: combat.id, started: Date.now(), scene: combat.scene?.name ?? '', actors: {}, affinities: {}, lastHit: {}, biggest: null, hp: {} };
 		s.down ??= {};
 		STATS.set(combat.id, s);
 	}
@@ -61,6 +61,20 @@ export function ensure(combat) {
 	return s;
 }
 
+/**
+ * The saved tally. It is stored as a JSON string: its keys are actor uuids ("Actor.abc",
+ * "Scene.x.Token.y.Actor.z"), and Foundry would read the dots in an object's keys as nested paths.
+ */
+export function loadStats(combat) {
+	const raw = combat?.getFlag?.(MODULE_ID, 'stats');
+	if (typeof raw !== 'string') return null;
+	try {
+		return JSON.parse(raw);
+	} catch {
+		return null;
+	}
+}
+
 export const statsFor = (combat) => (combat ? STATS.get(combat.id) ?? null : null);
 export const forget = (combat) => STATS.delete(combat.id);
 
@@ -69,7 +83,7 @@ function save(combat) {
 	clearTimeout(saveTimer);
 	saveTimer = setTimeout(() => {
 		const s = STATS.get(combat.id);
-		if (s && game.combats.get(combat.id)) combat.setFlag(MODULE_ID, 'stats', s).catch(() => {});
+		if (s && game.combats.get(combat.id)) combat.setFlag(MODULE_ID, 'stats', JSON.stringify(s)).catch(() => {});
 	}, 3000);
 }
 
@@ -211,7 +225,7 @@ export function installTracker() {
 			console.warn(`${MODULE_ID} | gain`, err);
 		}
 	});
-	Hooks.on('projectfu.events.resource', (ev) => {
+	onFuEvent('projectfu.events.resource', (ev) => {
 		try {
 			if (!['hp', 'mp'].includes(ev?.resource) || num(ev.amount) < 0) return;
 			const src = ev.source?.actor?.uuid ?? null;

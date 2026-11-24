@@ -1,5 +1,5 @@
 import { MODULE_ID, SOCKET, activeGM, esc, setting } from './util.mjs';
-import { installTracker, onSocketRecord, statsFor, ensure, forget } from './tracker.mjs';
+import { installTracker, onSocketRecord, statsFor, ensure, forget, loadStats } from './tracker.mjs';
 import { OUTCOMES, buildReport, detectOutcome, saveHistory, titleFor } from './report.mjs';
 import { closeScreen, isOpen, receiveReady, receiveState, showScreen } from './screen.mjs';
 import { HistoryApp } from './history.mjs';
@@ -21,7 +21,7 @@ async function askOutcome(suggested) {
 
 /** Active GM: the combat is over, build the report and show it to everyone */
 async function finish(combat) {
-	const stats = statsFor(combat) ?? combat.getFlag(MODULE_ID, 'stats');
+	const stats = statsFor(combat) ?? loadStats(combat);
 	forget(combat);
 	if (!stats || !combat.started) return;
 	if (!Object.values(stats.actors).some((a) => a.side === 'heroes')) return;
@@ -55,6 +55,14 @@ Hooks.once('init', () => {
 	reg('showPlayers', { name: 'Show the screen to players', hint: 'Off: only the GM sees it.', scope: 'world', type: Boolean, default: true });
 	reg('askAlways', { name: 'Always ask for the outcome', hint: 'Off: when every enemy is down it is a Victory, when every hero is down a Defeat, and you are only asked when it is unclear (retreat, surrender, negotiation).', scope: 'world', type: Boolean, default: false });
 	for (const [k, o] of Object.entries(OUTCOMES)) reg(`title_${k}`, { name: `Banner text: ${o.label}`, scope: 'world', type: String, default: titleFor(k) });
+	reg('layout', {
+		name: 'Hero stats',
+		hint: 'All heroes side by side, or one hero at a time with a tab for each hero (plus a Party tab), with extra details and each hero\'s share of the party\'s damage, healing and protection.',
+		scope: 'world',
+		type: String,
+		default: 'party',
+		choices: { party: 'All heroes side by side', each: 'One hero at a time', mine: 'One hero at a time, players start on their own hero' },
+	});
 	reg('showCombat', { name: 'Show combat stats', scope: 'world', type: Boolean, default: true });
 	reg('showSupport', { name: 'Show support stats', hint: 'Healing, damage prevented, buffs, debuffs, cleansing and revives, next to the damage numbers.', scope: 'world', type: Boolean, default: true });
 	reg('showResources', { name: 'Show HP / MP / IP', scope: 'world', type: Boolean, default: true });
@@ -68,7 +76,7 @@ Hooks.once('init', () => {
 	reg('fanfare', { name: 'Fanfare', scope: 'client', type: Boolean, default: true });
 	reg('volume', { name: 'Fanfare volume', scope: 'client', type: Number, range: { min: 0, max: 1, step: 0.05 }, default: 0.7 });
 	for (const [k, o] of Object.entries(OUTCOMES)) reg(`sound_${k}`, { name: `Sound: ${o.label}`, hint: 'Optional audio file. Empty: Battle UI\'s fanfare when it is active (victories), otherwise a short synthesized tune.', scope: 'world', type: String, default: '', filePicker: 'audio' });
-	game.settings.register(MODULE_ID, 'history', { scope: 'world', config: false, type: Array, default: [] });
+	game.settings.register(MODULE_ID, 'history', { scope: 'world', config: false, type: Array, default: [], onChange: () => foundry.applications.instances?.get('fuvs-history')?.render() });
 	game.settings.register(MODULE_ID, 'records', { scope: 'world', config: false, type: Object, default: {} });
 
 	installTracker();

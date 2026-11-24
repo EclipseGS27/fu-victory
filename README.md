@@ -25,7 +25,7 @@ In Foundry: Add-on Modules → Install Module → paste this Manifest URL:
 The book button in the token controls (and on the screen) lists past battles with their outcome; open one to see its screen again, or show it to everyone. It also has each hero's personal bests.
 
 ## Settings
-World: show to players, always ask for the outcome, banner text for each outcome, which stat sections to show, battles kept, a sound file for each outcome, a background image (shared or per outcome), typography (JRPG, Foundry default, storybook) and an optional banner font. Client: fanfare on/off, volume, and animations on/off.
+World: show to players, always ask for the outcome, hero stats layout (all heroes side by side, or one hero at a time with a tab per hero and a Party tab, optionally opening on each player's own hero), banner text for each outcome, which stat sections to show, battles kept, a sound file for each outcome, a background image (shared or per outcome), typography (JRPG, Foundry default, storybook) and an optional banner font. Client: fanfare on/off, volume, and animations on/off.
 
 API: `game.modules.get('fu-victory').api` → `endBattle(outcome)`, `history()`, `stats()`.
 

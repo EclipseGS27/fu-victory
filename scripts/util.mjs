@@ -57,3 +57,27 @@ export const duration = (ms) => {
 
 export const isGM = () => game.user.isGM;
 export const activeGM = () => game.users.activeGM?.isSelf ?? game.user.isGM;
+
+/**
+ * Listen to a Project FU event. Project FU 4.x sends some events (resource updates, consumables, expenses,
+ * checks being rendered…) only through its own AsyncHooks, which awaits listeners; 5.x sends everything through
+ * Foundry's Hooks. Listen on both, and run once per event object.
+ */
+export function onFuEvent(name, fn) {
+	const seen = new WeakSet();
+	const once = (ev, ...rest) => {
+		if (ev && typeof ev === 'object') {
+			if (seen.has(ev)) return undefined;
+			seen.add(ev);
+		}
+		return fn(ev, ...rest);
+	};
+	Hooks.on(name, once);
+	const version = game.system?.version ?? '0';
+	if (game.system?.id !== 'projectfu' || foundry.utils.isNewerVersion(version, '4.99.99')) return;
+	import(foundry.utils.getRoute('systems/projectfu/module/helpers/async-hooks.mjs'))
+		.then(({ AsyncHooks }) => AsyncHooks?.on?.(name, once))
+		.catch(() => {
+			/* this Project FU version has no AsyncHooks */
+		});
+}
